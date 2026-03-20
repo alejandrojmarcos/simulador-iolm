@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iOLM Simulator — EXFO FTB-1 Pro</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#111122;
+  font-family:'Courier New',monospace;
+  color:#d8d8e8;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:10px 6px;
+  font-size:11px;
+}
+
+/* ══════════════ DEVICE SHELL ══════════════ */
+.device {
+  width:1020px;
+  background:#252538;
+  border-radius:14px;
+  border:3px solid #404060;
+  box-shadow:0 0 60px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04);
+  overflow:hidden;
+}
+
+/* ══════════════ TOP BAR ══════════════ */
+.top-bar {
+  background:linear-gradient(180deg,#3c3c5e 0%,#28283e 100%);
+  padding:5px 12px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:2px solid #505070;
+}
+.tb-left { display:flex; align-items:center; gap:10px; }
+.exfo-logo { background:#e8a020; color:#000; font-weight:900; font-size:13px; padding:2px 9px; border-radius:3px; letter-spacing:1px; }
+.iolm-title { color:#b0c8ff; font-size:12px; font-weight:bold; letter-spacing:.5px; }
+.tb-right { display:flex; align-items:center; gap:8px; font-size:10px; color:#999; }
+.status-dot { width:8px; height:8px; border-radius:50%; background:#44cc44; display:inline-block; box-shadow:0 0 6px #44cc44; }
+
+/* ══════════════ MENU BAR ══════════════ */
+.menu-bar { background:#1e1e32; padding:2px 8px; display:flex; gap:1px; border-bottom:1px solid #404060; }
+.mi { padding:3px 10px; font-size:10px; color:#aaa; cursor:pointer; border-radius:3px; transition:background .12s; }
+.mi:hover { background:#38385a; color:#fff; }
+
+/* ══════════════ MAIN LAYOUT ══════════════ */
+.main-layout { display:flex; height:600px; }
+
+/* ══════════════ LEFT SIDEBAR ══════════════ */
+.sidebar { width:118px; background:#181828; border-right:2px solid #404060; display:flex; flex-direction:column; padding:8px 5px; gap:5px; }
+.sb-lbl { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; padding:2px 3px; margin-top:6px; }
+.sb-btn { background:linear-gradient(180deg,#363656 0%,#262644 100%); border:1px solid #505070; border-radius:4px; padding:6px 4px; font-size:10px; color:#bbb; cursor:pointer; text-align:center; transition:all .12s; font-family:'Courier New',monospace; }
+.sb-btn:hover { background:linear-gradient(180deg,#565688 0%,#464476 100%); color:#fff; }
+.sb-btn.active { background:linear-gradient(180deg,#e8a020 0%,#b07010 100%); color:#000; font-weight:bold; border-color:#ffcc44; }
+
+/* ══════════════ CONTENT ══════════════ */
+.content { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+
+/* ══════════════ LINK VIEW ══════════════ */
+.link-view { background:#0c0c1e; padding:8px 10px 4px; height:188px; border-bottom:2px solid #303048; position:relative; flex-shrink:0; }
+.lv-header { font-size:9px; color:#6a8acc; display:flex; justify-content:space-between; margin-bottom:6px; }
+.fiber-strip { position:relative; height:90px; display:flex; align-items:center; }
+.fiber-line { position:absolute; top:50%; left:0; right:0; height:5px; background:linear-gradient(90deg,#ffcc00,#ff8800,#ff5500); transform:translateY(-50%); border-radius:3px; transition:background .3s; }
+.fiber-line.meas { background:linear-gradient(90deg,#00ffee,#0088ff,#00ccff); animation:fline .4s ease-in-out infinite alternate; }
+@keyframes fline { from{opacity:.6} to{opacity:1} }
+
+.ev-icons { position:absolute; inset:0; pointer-events:none; }
+.ev-node { position:absolute; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:all; cursor:pointer; z-index:10; }
+.ev-shape { width:26px; height:26px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px; border:2px solid rgba(255,255,255,.2); box-shadow:0 2px 6px rgba(0,0,0,.6); transition:transform .15s; }
+.ev-node:hover .ev-shape { transform:scale(1.18); }
+.ev-lbl { font-size:7px; color:#bbb; white-space:nowrap; background:rgba(0,0,0,.7); padding:1px 3px; border-radius:2px; }
+.ev-loss-lbl { font-size:7px; color:#ffdd77; }
+.ic-connector { background:#1a6010; }
+.ic-splice { background:#8a4800; }
+.ic-fusion { background:#7a3a00; }
+.ic-mech-splice { background:#6a2800; }
+.ic-mech-conn { background:#0a5a3a; }
+.ic-bend { background:#5a1a70; }
+.ic-break { background:#880000; }
+.ic-splitter { background:#0a4070; }
+.ic-gain { background:#106040; }
+.ic-launch { background:#1a3a7a; }
+.ic-receive { background:#1a3a7a; }
+.ic-pass { border-color:#44ee44 !important; }
+.ic-fail { border-color:#ff3333 !important; box-shadow:0 0 8px #ff333377; }
+.ruler { position:relative; height:14px; margin-top:2px; }
+.ruler-tick { position:absolute; font-size:7px; color:#555; transform:translateX(-50%); white-space:nowrap; }
+.ttip { position:absolute; display:none; background:#1e1e3e; border:1px solid #6aa8ff; border-radius:4px; padding:5px 9px; font-size:9px; color:#e0e0ff; z-index:200; pointer-events:none; white-space:pre; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.8); }
+
+/* ══════════════ PROGRESS ══════════════ */
+.prog-wrap { background:#151524; padding:5px 10px; flex-shrink:0; border-bottom:1px solid #303048; }
+.prog-lbl { font-size:8px; color:#666; display:flex; justify-content:space-between; margin-bottom:2px; }
+.prog-bg { background:#080816; border-radius:3px; height:8px; border:1px solid #303048; overflow:hidden; }
+.prog-fill { height:100%; background:linear-gradient(90deg,#00ccff,#0066ff); border-radius:3px; width:0%; transition:width .08s linear; box-shadow:0 0 8px rgba(0,180,255,.5); }
+
+/* ══════════════ SUMMARY ══════════════ */
+.summary { background:#151524; padding:7px 10px; display:flex; gap:8px; align-items:center; border-bottom:2px solid #303048; flex-shrink:0; }
+.sum-box { background:#0c0c1e; border:1px solid #2a2a44; border-radius:4px; padding:5px 9px; flex:1; }
+.sum-title { font-size:8px; color:#777; text-transform:uppercase; margin-bottom:2px; }
+.sum-val { font-size:15px; font-weight:bold; color:#6aa8ff; }
+.sum-unit { font-size:8px; color:#888; }
+.pf-box { padding:5px 14px; border-radius:6px; font-size:17px; font-weight:900; display:flex; align-items:center; justify-content:center; min-width:88px; letter-spacing:2px; border:2px solid; }
+.pf-pass { background:#082808; color:#44ee44; border-color:#44ee44; }
+.pf-fail { background:#280808; color:#ff3333; border-color:#ff3333; animation:bfail .9s step-end infinite; }
+.pf-unknown { background:#222; color:#666; border-color:#444; }
+@keyframes bfail { 50%{opacity:.55} }
+
+/* ══════════════ WL TABS ══════════════ */
+.wl-tabs { background:#131322; display:flex; gap:5px; padding:6px 10px 0; flex-shrink:0; }
+.wl-tab { padding:4px 13px; font-size:10px; border-radius:4px 4px 0 0; cursor:pointer; background:#1e1e36; color:#999; border:1px solid #404060; border-bottom:none; transition:all .12s; }
+.wl-tab.active { background:#0e0e26; color:#ffee00; border-color:#666; }
+
+/* ══════════════ TAB CONTENT ══════════════ */
+.tab-content { display:none; flex:1; overflow-y:auto; background:#0e0e22; }
+.tab-content.active { display:block; }
+.ev-table { width:100%; border-collapse:collapse; font-size:10px; }
+.ev-table th { background:#1e1e3a; color:#6aa8ff; padding:5px 7px; text-align:left; border-bottom:2px solid #404060; font-size:9px; text-transform:uppercase; letter-spacing:.4px; position:sticky; top:0; z-index:5; }
+.ev-table td { padding:4px 7px; border-bottom:1px solid #1e1e36; color:#ccc; }
+.ev-table tr:hover td { background:#1a1a32; }
+.ev-table .t-pass { color:#44ee44; font-weight:bold; }
+.ev-table .t-fail { color:#ff4444; font-weight:bold; }
+.ev-table tr.row-fail td { background:#200808; }
+.ev-table tr.row-fail:hover td { background:#2e1010; }
+.mi-grid { padding:10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.mi-row { background:#0c0c1e; border:1px solid #1e1e36; border-radius:3px; padding:5px 9px; display:flex; justify-content:space-between; align-items:center; }
+.mi-lbl { font-size:9px; color:#777; }
+.mi-val { font-size:11px; color:#ddd; font-weight:bold; }
+.trace-wrap { padding:8px; background:#080816; }
+canvas { width:100%; height:210px; display:block; background:#060610; border:1px solid #202038; border-radius:3px; }
+
+/* ══════════════ RIGHT PANEL ══════════════ */
+.right-panel { width:112px; background:#131322; border-left:2px solid #404060; display:flex; flex-direction:column; padding:8px 5px; gap:5px; }
+.start-btn { width:100%; padding:13px 4px; background:linear-gradient(180deg,#44bb44 0%,#228822 100%); border:2px solid #66dd66; border-radius:6px; color:#fff; font-size:15px; font-weight:900; cursor:pointer; text-align:center; letter-spacing:1px; transition:all .15s; font-family:'Courier New',monospace; box-shadow:0 4px 14px rgba(68,187,68,.35); }
+.start-btn:hover { background:linear-gradient(180deg,#66dd66 0%,#44aa44 100%); transform:translateY(-1px); }
+.start-btn.meas { background:linear-gradient(180deg,#cc8800 0%,#885500 100%); border-color:#ffaa00; cursor:not-allowed; animation:sbp .5s ease-in-out infinite alternate; }
+@keyframes sbp { from{box-shadow:0 4px 12px rgba(204,136,0,.3)} to{box-shadow:0 4px 22px rgba(255,170,0,.75)} }
+.rp-btn { width:100%; padding:6px 4px; background:linear-gradient(180deg,#363656 0%,#262644 100%); border:1px solid #505070; border-radius:4px; color:#bbb; font-size:9px; cursor:pointer; text-align:center; transition:all .12s; font-family:'Courier New',monospace; }
+.rp-btn:hover { background:linear-gradient(180deg,#565688 0%,#464476 100%); color:#fff; }
+.status-bar { background:#080816; padding:3px 12px; display:flex; justify-content:space-between; border-top:1px solid #303048; font-size:8px; color:#555; }
+.meas-ovl { display:none; position:absolute; inset:0; background:rgba(0,0,16,.78); align-items:center; justify-content:center; flex-direction:column; gap:10px; z-index:50; }
+.meas-ovl.vis { display:flex; }
+.spinner { width:38px; height:38px; border:4px solid #181832; border-top-color:#00ccff; border-radius:50%; animation:spin .75s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.ovl-txt { font-size:11px; color:#00ccff; letter-spacing:2px; }
+
+/* ══════════════ MODAL ══════════════ */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:1000; align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal { background:#1a1a30; border:2px solid #505070; border-radius:10px; width:660px; max-height:88vh; overflow-y:auto; box-shadow:0 0 50px rgba(0,0,0,.95); }
+.modal-hdr { background:linear-gradient(180deg,#3c3c5e 0%,#28283e 100%); padding:9px 14px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #505070; position:sticky; top:0; z-index:10; }
+.modal-ttl { font-size:12px; color:#6aa8ff; font-weight:bold; }
+.modal-x { background:#6a0a0a; border:1px solid #ee3333; color:#ff8888; border-radius:3px; width:22px; height:22px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.modal-x:hover { background:#aa0a0a; color:#fff; }
+.modal-body { padding:14px 16px; }
+.sec-ttl { font-size:9px; color:#e8a020; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid #2a2a44; padding-bottom:3px; margin:12px 0 8px; }
+.sec-ttl:first-child { margin-top:0; }
+.f-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.f-lbl { font-size:10px; color:#999; flex:1; }
+.f-inp { background:#0c0c1e; border:1px solid #404060; border-radius:3px; color:#e0e0e0; padding:4px 8px; font-size:10px; width:110px; font-family:'Courier New',monospace; }
+.f-inp:focus { outline:none; border-color:#6aa8ff; }
+.f-sel { background:#0c0c1e; border:1px solid #404060; border-radius:3px; color:#e0e0e0; padding:4px 6px; font-size:10px; font-family:'Courier New',monospace; }
+.f-sel:focus { outline:none; border-color:#6aa8ff; }
+.tp-table { width:100%; border-collapse:collapse; font-size:10px; margin-top:6px; }
+.tp-table th { background:#1e1e36; color:#6aa8ff; padding:4px 7px; text-align:left; border-bottom:1px solid #303050; font-size:9px; }
+.tp-table td { padding:3px 6px; border-bottom:1px solid #1a1a30; }
+.tp-table input { background:#0c0c1e; border:1px solid #303050; border-radius:2px; color:#e0e0e0; padding:2px 5px; font-size:10px; width:80px; font-family:'Courier New',monospace; }
+.tp-table input:focus { outline:none; border-color:#6aa8ff; }
+.add-ev-panel { background:#0c0c1e; border:1px solid #2a2a44; border-radius:5px; padding:10px; margin-bottom:8px; }
+.add-ev-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.add-ev-list { display:flex; flex-direction:column; gap:4px; margin-top:8px; max-height:200px; overflow-y:auto; }
+.ev-cfg-row { display:flex; align-items:center; gap:5px; background:#141428; border:1px solid #222244; border-radius:3px; padding:4px 7px; font-size:10px; }
+.ev-cfg-row .ep { color:#6aa8ff; width:55px; flex-shrink:0; }
+.ev-cfg-row .et { color:#ddd; flex:1; }
+.ev-cfg-row .el { color:#ffdd77; width:55px; }
+.ev-cfg-row .er { color:#ff9966; width:55px; }
+.ev-cfg-row .ed { background:#4a0a0a; border:1px solid #aa3333; color:#ff7777; border-radius:2px; padding:1px 5px; cursor:pointer; font-size:9px; }
+.ev-cfg-row .ed:hover { background:#770a0a; }
+.add-btn { background:linear-gradient(180deg,#14501a 0%,#0a3010 100%); border:1px solid #44aa44; border-radius:3px; color:#88ee88; padding:5px 12px; font-size:10px; cursor:pointer; font-family:'Courier New',monospace; transition:all .12s; }
+.add-btn:hover { background:linear-gradient(180deg,#1e7828 0%,#145018 100%); }
+.modal-ftr { padding:10px 16px; border-top:1px solid #2a2a44; display:flex; gap:8px; justify-content:flex-end; }
+.btn-apply { background:linear-gradient(180deg,#e8a020 0%,#b07010 100%); border:1px solid #ffcc44; border-radius:3px; color:#000; padding:6px 16px; font-size:10px; font-weight:bold; cursor:pointer; font-family:'Courier New',monospace; }
+.btn-cancel { background:linear-gradient(180deg,#363656 0%,#262644 100%); border:1px solid #505070; border-radius:3px; color:#bbb; padding:6px 16px; font-size:10px; cursor:pointer; font-family:'Courier New',monospace; }
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:#0c0c1e; }
+::-webkit-scrollbar-thumb { background:#303050; border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:#505080; }
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="top-bar">
+    <div class="tb-left">
+      <span class="exfo-logo">EXFO</span>
+      <span class="iolm-title">iOLM — Intelligent Optical Link Mapper &nbsp;|&nbsp; FTB-1 Pro</span>
+    </div>
+    <div class="tb-right">
+      <span class="status-dot" id="sDot"></span>
+      <span id="sTxt">READY</span>
+      &nbsp;|&nbsp;
+      <span id="clk"></span>
+    </div>
+  </div>
+
+  <div class="menu-bar">
+    <div class="mi" onclick="openCfg()">Test Parameters</div>
+    <div class="mi" onclick="showTab('meas-info')">Measurement Info</div>
+    <div class="mi" onclick="showTab('trace')">OTDR Trace</div>
+    <div class="mi" onclick="exportCSV()">Save / Report</div>
+    <div class="mi" onclick="resetAll()">Home</div>
+  </div>
+
+  <div class="main-layout">
+    <div class="sidebar">
+      <div class="sb-lbl">View</div>
+      <div class="sb-btn active" id="sbtab0" onclick="showTab('events')">Link View</div>
+      <div class="sb-btn"        id="sbtab1" onclick="showTab('trace')">OTDR Trace</div>
+      <div class="sb-btn"        id="sbtab2" onclick="showTab('meas-info')">Meas. Info</div>
+      <div class="sb-lbl">Config</div>
+      <div class="sb-btn" onclick="openCfg()">Add Faults</div>
+      <div class="sb-btn" onclick="resetAll()">Reset</div>
+      <div class="sb-lbl">Export</div>
+      <div class="sb-btn" onclick="exportCSV()">Save CSV</div>
+    </div>
+
+    <div class="content">
+      <div class="link-view" id="linkView">
+        <div class="lv-header">
+          <span>Link View</span>
+          <span id="lvLen">Length: — m</span>
+        </div>
+        <div class="fiber-strip" id="fiberStrip">
+          <div class="fiber-line" id="fiberLine"></div>
+          <div class="ev-icons" id="evIcons"></div>
+        </div>
+        <div class="ruler" id="ruler"></div>
+        <div class="meas-ovl" id="mOvl">
+          <div class="spinner"></div>
+          <div class="ovl-txt" id="oTxt">ACQUIRING...</div>
+        </div>
+        <div class="ttip" id="ttip"></div>
+      </div>
+
+      <div class="prog-wrap">
+        <div class="prog-lbl"><span id="pLbl">Idle</span><span id="pPct">0%</span></div>
+        <div class="prog-bg"><div class="prog-fill" id="pFill"></div></div>
+      </div>
+
+      <div class="summary">
+        <div class="sum-box"><div class="sum-title">Link Loss 1310 nm</div><span class="sum-val" id="sLL1310">—</span> <span class="sum-unit">dB</span></div>
+        <div class="sum-box"><div class="sum-title">Link Loss 1550 nm</div><span class="sum-val" id="sLL1550">—</span> <span class="sum-unit">dB</span></div>
+        <div class="sum-box"><div class="sum-title">ORL 1310 nm</div><span class="sum-val" id="sORL1310">—</span> <span class="sum-unit">dB</span></div>
+        <div class="sum-box"><div class="sum-title">ORL 1550 nm</div><span class="sum-val" id="sORL1550">—</span> <span class="sum-unit">dB</span></div>
+        <div class="pf-box pf-unknown" id="pfBox">—</div>
+      </div>
+
+      <div class="wl-tabs">
+        <div class="wl-tab active" onclick="selWl('1310')">1310 nm</div>
+        <div class="wl-tab"       onclick="selWl('1550')">1550 nm</div>
+      </div>
+
+      <div class="tab-content active" id="tab-events">
+        <table class="ev-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Position (m)</th><th>Type</th><th>WL (nm)</th>
+              <th>Loss (dB)</th><th>Reflectance (dB)</th><th>Gain (dB)</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="evTbody">
+            <tr><td colspan="8" style="text-align:center;color:#444;padding:24px">Run a measurement to see results</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tab-content" id="tab-trace">
+        <div class="trace-wrap">
+          <canvas id="traceCanvas" width="800" height="210"></canvas>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-meas-info">
+        <div class="mi-grid">
+          <div class="mi-row"><span class="mi-lbl">Acquisition date</span><span class="mi-val" id="miDate">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Duration</span><span class="mi-val" id="miDur">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Total link length</span><span class="mi-val" id="miLen">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Events detected</span><span class="mi-val" id="miEvts">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Pulsewidth</span><span class="mi-val">100 ns</span></div>
+          <div class="mi-row"><span class="mi-lbl">Range</span><span class="mi-val" id="miRange">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Averaging time</span><span class="mi-val">3 s</span></div>
+          <div class="mi-row"><span class="mi-lbl">IOR</span><span class="mi-val" id="miIOR">1.46800</span></div>
+          <div class="mi-row"><span class="mi-lbl">Th. splice / fusion</span><span class="mi-val" id="miThs">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Th. connector</span><span class="mi-val" id="miThc">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Th. bend</span><span class="mi-val" id="miThb">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Th. splitter</span><span class="mi-val" id="miThsp">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Th. reflectance</span><span class="mi-val" id="miThr">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Pass/Fail result</span><span class="mi-val" id="miPF">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Fails detected</span><span class="mi-val" id="miFails" style="color:#ff6666">—</span></div>
+          <div class="mi-row"><span class="mi-lbl">Fiber atten 1310</span><span class="mi-val" id="miAt1310">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <button class="start-btn" id="startBtn" onclick="startMeas()">▶ START</button>
+      <div class="rp-btn" onclick="openCfg()">Open...</div>
+      <div class="rp-btn" onclick="exportCSV()">Save</div>
+      <div class="rp-btn" onclick="exportCSV()">Save As</div>
+      <div class="rp-btn" onclick="openCfg()">Configure</div>
+      <div class="rp-btn" onclick="exportCSV()">Report...</div>
+      <div class="rp-btn" onclick="resetAll()">Home</div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span>iOLM Simulator v3.0 | EXFO FTB-1 Pro | PON 1x8</span>
+    <span>Test: ACC_4_1310+1550nm | IOR: 1.46800</span>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="cfgModal">
+<div class="modal">
+  <div class="modal-hdr">
+    <span class="modal-ttl">⚙  Test Parameters &amp; Fault Configuration</span>
+    <div class="modal-x" onclick="closeCfg()">✕</div>
+  </div>
+  <div class="modal-body">
+    <div class="sec-ttl">Link Parameters</div>
+    <div class="f-row"><span class="f-lbl">Total link length (m)</span><input class="f-inp" type="number" id="cfgLen" value="2000" min="100" max="200000" step="100"></div>
+    <div class="f-row"><span class="f-lbl">Fiber attenuation 1310 nm (dB/km)</span><input class="f-inp" type="number" id="cfgAt1310" value="0.35" min="0.05" max="5" step="0.01"></div>
+    <div class="f-row"><span class="f-lbl">Fiber attenuation 1550 nm (dB/km)</span><input class="f-inp" type="number" id="cfgAt1550" value="0.22" min="0.05" max="5" step="0.01"></div>
+    <div class="f-row"><span class="f-lbl">Index of refraction (IOR)</span><input class="f-inp" type="number" id="cfgIOR" value="1.46800" min="1.4" max="1.6" step="0.001"></div>
+
+    <div class="sec-ttl">Pass/Fail Thresholds</div>
+    <div class="f-row"><span class="f-lbl">Max splice / fusion / mech-splice loss (dB)</span><input class="f-inp" type="number" id="cfgThSp" value="0.30" min="0.01" max="3" step="0.01"></div>
+    <div class="f-row"><span class="f-lbl">Max connector / mech-conn loss (dB)</span><input class="f-inp" type="number" id="cfgThCo" value="0.75" min="0.01" max="3" step="0.01"></div>
+    <div class="f-row"><span class="f-lbl">Max bend loss (dB)</span><input class="f-inp" type="number" id="cfgThBe" value="0.50" min="0.01" max="5" step="0.01"></div>
+    <div class="f-row"><span class="f-lbl">Max splitter insertion loss (dB)</span><input class="f-inp" type="number" id="cfgThSplit" value="3.60" min="0.5" max="30" step="0.1"></div>
+    <div class="f-row"><span class="f-lbl">Max reflectance — any event (dB, negative)</span><input class="f-inp" type="number" id="cfgThRe" value="-45" max="-10" min="-80" step="1"></div>
+
+    <div class="sec-ttl">Default Values per Event Type (editable)</div>
+    <table class="tp-table">
+      <thead><tr><th>Type</th><th>Loss 1310 (dB)</th><th>Loss 1550 (dB)</th><th>Reflectance (dB)</th></tr></thead>
+      <tbody id="typeParamBody"></tbody>
+    </table>
+
+    <div class="sec-ttl">Fault / Event List</div>
+    <div class="add-ev-panel">
+      <div class="add-ev-row">
+        <select class="f-sel" id="newEvType" style="flex:1">
+          <option value="splice">Splice (empalme por fusión)</option>
+          <option value="fusion">Fusion Splice (fusión mejorada)</option>
+          <option value="mech-splice">Mechanical Splice (empalme mecánico)</option>
+          <option value="connector">Connector (conector óptico)</option>
+          <option value="mech-conn">Mechanical Connector</option>
+          <option value="bend">Bend (curvatura)</option>
+          <option value="break">Break / Open end (corte)</option>
+          <option value="splitter">Splitter (divisor óptico)</option>
+          <option value="gain">Gain / IOR Change (ganancia Δn)</option>
+        </select>
+      </div>
+      <div class="add-ev-row" style="margin-top:6px">
+        <label style="font-size:9px;color:#888">Pos (m):</label>
+        <input class="f-inp" type="number" id="newEvPos" placeholder="500" min="1" style="width:80px">
+        <label style="font-size:9px;color:#888">Loss↑ (dB):</label>
+        <input class="f-inp" type="number" id="newEvLoss" placeholder="auto" step="0.01" style="width:75px">
+        <label style="font-size:9px;color:#888">Refl (dB):</label>
+        <input class="f-inp" type="number" id="newEvRefl" placeholder="auto" step="1" max="0" style="width:75px">
+        <button class="add-btn" onclick="addEvCfg()">+ Add Event</button>
+      </div>
+      <div class="add-ev-list" id="evCfgList"></div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="btn-cancel" onclick="closeCfg()">Cancel</button>
+    <button class="btn-apply"  onclick="applyCfg()">✔ Apply</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const TM = {
+  splice:       { label:'Splice',           icon:'⟈', cls:'ic-splice',      dl1310:0.10, dl1550:0.08, dr:-65 },
+  fusion:       { label:'Fusion Splice',    icon:'⊕', cls:'ic-fusion',      dl1310:0.05, dl1550:0.04, dr:-68 },
+  'mech-splice':{ label:'Mech. Splice',     icon:'⧖', cls:'ic-mech-splice', dl1310:0.25, dl1550:0.22, dr:-55 },
+  connector:    { label:'Connector',        icon:'▣', cls:'ic-connector',  dl1310:0.50, dl1550:0.45, dr:-40 },
+  'mech-conn':  { label:'Mech. Connector',  icon:'◈', cls:'ic-mech-conn',  dl1310:0.60, dl1550:0.55, dr:-42 },
+  bend:         { label:'Bend',             icon:'⌒', cls:'ic-bend',       dl1310:0.30, dl1550:0.40, dr:-62 },
+  break:        { label:'Break/Open',       icon:'✕', cls:'ic-break',      dl1310:99,   dl1550:99,   dr:-14 },
+  splitter:     { label:'Splitter 1×2',     icon:'Y', cls:'ic-splitter',   dl1310:3.60, dl1550:3.60, dr:-60 },
+  gain:         { label:'IOR Gain',         icon:'↑', cls:'ic-gain',       dl1310:-0.10,dl1550:-0.08,dr:-70 },
+  launch:       { label:'Launch Conn.',     icon:'▶', cls:'ic-launch',     dl1310:0.50, dl1550:0.45, dr:-40 },
+  receive:      { label:'Receive Conn.',    icon:'◀', cls:'ic-receive',    dl1310:0.50, dl1550:0.45, dr:-40 },
+};
+
+// Mutable defaults
+const TD = {};
+Object.keys(TM).forEach(k => { TD[k] = { l1310:TM[k].dl1310, l1550:TM[k].dl1550, r:TM[k].dr }; });
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let S = {
+  measuring:false, measured:false, selWl:'1310',
+  linkLen:2000, at1310:0.35, at1550:0.22, ior:1.46800,
+  thSplice:0.30, thConn:0.75, thBend:0.50, thSplit:3.60, thRefl:-45,
+  cfgEvs:[], results:null,
+};
+function initEvs() {
+  S.cfgEvs = [
+    { type:'launch',  pos:0,    l1310:TD.connector.l1310, l1550:TD.connector.l1550, r:TD.connector.r },
+    { type:'receive', pos:null, l1310:TD.connector.l1310, l1550:TD.connector.l1550, r:TD.connector.r },
+  ];
+}
+initEvs();
+
+// Clock
+setInterval(() => { document.getElementById('clk').textContent = new Date().toLocaleTimeString('en-GB',{hour12:false}); }, 1000);
+document.getElementById('clk').textContent = new Date().toLocaleTimeString('en-GB',{hour12:false});
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  ['events','trace','meas-info'].forEach((n,i) => document.getElementById('sbtab'+i).classList.toggle('active', n===name));
+  if (name==='trace' && S.measured) drawTrace();
+}
+function selWl(wl) {
+  S.selWl = wl;
+  document.querySelectorAll('.wl-tab').forEach((t,i) => t.classList.toggle('active',(i===0&&wl==='1310')||(i===1&&wl==='1550')));
+  if (S.measured) { fillEvTable(); drawTrace(); }
+}
+
+// ─── FIBER RENDER ─────────────────────────────────────────────────────────────
+function renderFiber(withResults) {
+  const ic = document.getElementById('evIcons');
+  ic.innerHTML = '';
+  document.getElementById('fiberLine').className = 'fiber-line';
+  document.getElementById('lvLen').textContent = 'Length: ' + S.linkLen + ' m';
+  const evs = withResults
+    ? (S.selWl==='1310' ? S.results.evs1310 : S.results.evs1550)
+    : S.cfgEvs.map(e => ({ ...e, pos:e.pos===null?S.linkLen:e.pos, pass:null }));
+  evs.forEach(ev => drawNode(ic, ev, withResults));
+  drawRuler(evs.filter(e=>e.pos>0&&e.pos<S.linkLen), S.linkLen);
+}
+
+function drawNode(cont, ev, showR) {
+  const pos = ev.pos===null ? S.linkLen : ev.pos;
+  const pct = Math.min(100,(pos/S.linkLen)*100);
+  const meta = TM[ev.type] || TM.connector;
+  const node = document.createElement('div');
+  node.className = 'ev-node';
+  node.style.left = pct+'%';
+  const shape = document.createElement('div');
+  shape.className = 'ev-shape '+meta.cls;
+  if (showR && ev.pass!==null) shape.classList.add(ev.pass?'ic-pass':'ic-fail');
+  shape.textContent = meta.icon;
+  const lbl = document.createElement('div');
+  lbl.className = 'ev-lbl';
+  lbl.textContent = pos>=1000?(pos/1000).toFixed(2)+'km':pos+'m';
+  node.appendChild(shape);
+  node.appendChild(lbl);
+  if (showR) {
+    const ll = document.createElement('div');
+    ll.className = 'ev-loss-lbl';
+    if (ev.type==='gain') ll.textContent = (ev.gainVal>0?'+':'')+ev.gainVal.toFixed(2)+'dB';
+    else if (ev.type==='break') ll.textContent = '—Break';
+    else ll.textContent = ev.loss.toFixed(2)+'dB';
+    node.appendChild(ll);
+  }
+  node.addEventListener('mouseenter', () => {
+    const tt = document.getElementById('ttip');
+    let lines = [meta.label+' @ '+pos+' m'];
+    if (showR) {
+      lines.push('Loss: '+(ev.type==='break'?'Break':ev.loss.toFixed(3)+' dB'));
+      lines.push('Refl: '+ev.reflectance.toFixed(1)+' dB');
+      if (ev.type==='gain') lines.push('Gain: '+ev.gainVal.toFixed(3)+' dB');
+      lines.push('Status: '+(ev.pass?'✔ PASS':'✘ FAIL'));
+    }
+    tt.textContent = lines.join('\n');
+    tt.style.display = 'block';
+    tt.style.left = (node.offsetLeft+30)+'px';
+    tt.style.top = '8px';
+  });
+  node.addEventListener('mouseleave', () => { document.getElementById('ttip').style.display='none'; });
+  cont.appendChild(node);
+}
+
+function drawRuler(evs, len) {
+  const r = document.getElementById('ruler');
+  r.innerHTML = '';
+  const pos = [...new Set([0,...evs.map(e=>e.pos),len])].sort((a,b)=>a-b);
+  pos.forEach(p => {
+    const t = document.createElement('div');
+    t.className = 'ruler-tick';
+    t.style.left = ((p/len)*100)+'%';
+    t.textContent = p>=1000?(p/1000).toFixed(1)+'k':p+'m';
+    r.appendChild(t);
+  });
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openCfg() {
+  document.getElementById('cfgLen').value    = S.linkLen;
+  document.getElementById('cfgAt1310').value = S.at1310;
+  document.getElementById('cfgAt1550').value = S.at1550;
+  document.getElementById('cfgIOR').value    = S.ior;
+  document.getElementById('cfgThSp').value   = S.thSplice;
+  document.getElementById('cfgThCo').value   = S.thConn;
+  document.getElementById('cfgThBe').value   = S.thBend;
+  document.getElementById('cfgThSplit').value= S.thSplit;
+  document.getElementById('cfgThRe').value   = S.thRefl;
+  buildTypeTable();
+  renderEvList();
+  document.getElementById('cfgModal').classList.add('open');
+}
+function closeCfg() { document.getElementById('cfgModal').classList.remove('open'); }
+
+function buildTypeTable() {
+  const body = document.getElementById('typeParamBody');
+  body.innerHTML = '';
+  ['splice','fusion','mech-splice','connector','mech-conn','bend','break','splitter','gain'].forEach(k => {
+    const d = TD[k];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${TM[k].label}</td>
+      <td><input type="number" step="0.01" value="${d.l1310}" onchange="TD['${k}'].l1310=parseFloat(this.value)||0" style="color:${d.l1310<0?'#88ee88':'#ffd080'}"></td>
+      <td><input type="number" step="0.01" value="${d.l1550}" onchange="TD['${k}'].l1550=parseFloat(this.value)||0" style="color:${d.l1550<0?'#88ee88':'#ffd080'}"></td>
+      <td><input type="number" step="1"    value="${d.r}"     onchange="TD['${k}'].r=parseFloat(this.value)||0"></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function addEvCfg() {
+  const type = document.getElementById('newEvType').value;
+  const posV = parseFloat(document.getElementById('newEvPos').value);
+  const lossS = document.getElementById('newEvLoss').value;
+  const reflS = document.getElementById('newEvRefl').value;
+  const len = parseInt(document.getElementById('cfgLen').value)||S.linkLen;
+  if (isNaN(posV)||posV<=0||posV>=len) { alert('Position must be > 0 and < '+len+' m'); return; }
+  const d = TD[type];
+  const loss1310 = lossS!==''?parseFloat(lossS):d.l1310;
+  const ratio = d.l1310!==0 ? d.l1550/d.l1310 : 1;
+  const loss1550 = lossS!==''?parseFloat(lossS)*ratio:d.l1550;
+  const refl = reflS!==''?parseFloat(reflS):d.r;
+  const ev = { type, pos:posV, l1310:loss1310, l1550:loss1550, r:refl };
+  const launch=S.cfgEvs.shift(), receive=S.cfgEvs.pop();
+  S.cfgEvs.push(ev);
+  S.cfgEvs.sort((a,b)=>a.pos-b.pos);
+  S.cfgEvs.unshift(launch);
+  S.cfgEvs.push(receive);
+  document.getElementById('newEvPos').value='';
+  document.getElementById('newEvLoss').value='';
+  document.getElementById('newEvRefl').value='';
+  renderEvList();
+}
+
+function removeEv(i) {
+  if (i===0||i===S.cfgEvs.length-1) return;
+  S.cfgEvs.splice(i,1);
+  renderEvList();
+}
+
+function renderEvList() {
+  const list = document.getElementById('evCfgList');
+  list.innerHTML='';
+  S.cfgEvs.forEach((ev,i) => {
+    const isFixed = i===0||i===S.cfgEvs.length-1;
+    const posStr = ev.pos===null?'End':ev.pos+'m';
+    const meta = TM[ev.type]||TM.connector;
+    const div = document.createElement('div');
+    div.className='ev-cfg-row';
+    div.innerHTML=`
+      <span class="ep">${posStr}</span>
+      <span class="et">${meta.label}</span>
+      <span class="el">${ev.l1310.toFixed(2)}dB</span>
+      <span class="er">${ev.r.toFixed(0)}dB</span>
+      ${isFixed?'<span style="width:28px"></span>':`<button class="ed" onclick="removeEv(${i})">✕</button>`}
+    `;
+    list.appendChild(div);
+  });
+}
+
+function applyCfg() {
+  S.linkLen  = parseInt(document.getElementById('cfgLen').value)||S.linkLen;
+  S.at1310   = parseFloat(document.getElementById('cfgAt1310').value)||S.at1310;
+  S.at1550   = parseFloat(document.getElementById('cfgAt1550').value)||S.at1550;
+  S.ior      = parseFloat(document.getElementById('cfgIOR').value)||S.ior;
+  S.thSplice = parseFloat(document.getElementById('cfgThSp').value)||S.thSplice;
+  S.thConn   = parseFloat(document.getElementById('cfgThCo').value)||S.thConn;
+  S.thBend   = parseFloat(document.getElementById('cfgThBe').value)||S.thBend;
+  S.thSplit  = parseFloat(document.getElementById('cfgThSplit').value)||S.thSplit;
+  S.thRefl   = parseFloat(document.getElementById('cfgThRe').value)||S.thRefl;
+  document.getElementById('miIOR').textContent = S.ior.toFixed(5);
+  closeCfg();
+  S.measured=false; resetDisplay(); renderFiber(false);
+}
+
+// ─── MEASUREMENT ──────────────────────────────────────────────────────────────
+function startMeas() {
+  if (S.measuring) return;
+  S.measuring=true; S.measured=false;
+  const btn=document.getElementById('startBtn');
+  btn.textContent='⏳ MEAS...'; btn.classList.add('meas');
+  document.getElementById('fiberLine').classList.add('meas');
+  document.getElementById('mOvl').classList.add('vis');
+  document.getElementById('sDot').style.cssText='background:#ffaa00;box-shadow:0 0 6px #ffaa00';
+  document.getElementById('sTxt').textContent='MEASURING';
+  const phases=['ACQUIRING...','ANALYZING EVENTS...','PROCESSING 1310 nm...','PROCESSING 1550 nm...','COMPUTING PASS/FAIL...'];
+  let pct=0, phI=0;
+  const totalMs=4500, step=80;
+  const timer=setInterval(()=>{
+    pct+=(step/totalMs)*100; if(pct>100)pct=100;
+    document.getElementById('pFill').style.width=pct+'%';
+    document.getElementById('pPct').textContent=Math.round(pct)+'%';
+    const pi=Math.min(phases.length-1,Math.floor(pct/20));
+    if(pi!==phI){phI=pi;document.getElementById('oTxt').textContent=phases[pi];document.getElementById('pLbl').textContent=phases[pi];}
+    if(pct>=100){clearInterval(timer);finishMeas();}
+  },step);
+}
+
+function finishMeas() {
+  S.measuring=false; S.measured=true;
+  document.getElementById('mOvl').classList.remove('vis');
+  document.getElementById('fiberLine').classList.remove('meas');
+  const btn=document.getElementById('startBtn');
+  btn.textContent='▶ START'; btn.classList.remove('meas');
+  document.getElementById('sDot').style.cssText='background:#44cc44;box-shadow:0 0 6px #44cc44';
+  document.getElementById('sTxt').textContent='COMPLETE';
+  computeResults(); renderResults();
+}
+
+// ─── COMPUTE ──────────────────────────────────────────────────────────────────
+function jit(s){return(Math.random()-.5)*2*s;}
+function thresh(type){ return ['splice','fusion','mech-splice'].includes(type)?S.thSplice:['connector','mech-conn'].includes(type)?S.thConn:type==='bend'?S.thBend:type==='splitter'?S.thSplit:S.thConn; }
+
+function computeResults() {
+  const len=S.linkLen;
+  const r1310=[], r1550=[];
+  S.cfgEvs.forEach(ev => {
+    const pos = ev.pos===null?len:ev.pos;
+    const l1310 = ev.l1310 + jit(0.015);
+    const l1550 = ev.l1550 + jit(0.012);
+    const refl  = ev.r + jit(1.2);
+    const isGain  = ev.type==='gain';
+    const isBreak = ev.type==='break';
+    const gainV1310 = isGain?Math.abs(l1310):0;
+    const gainV1550 = isGain?Math.abs(l1550):0;
+    const th = thresh(ev.type);
+    const pass1310 = isBreak?false:isGain?true:(Math.abs(l1310)<=th && refl<=S.thRefl);
+    const pass1550 = isBreak?false:isGain?true:(Math.abs(l1550)<=th && refl<=S.thRefl);
+    r1310.push({type:ev.type,pos,loss:isGain?-Math.abs(l1310):Math.abs(l1310),gainVal:gainV1310,reflectance:refl,pass:pass1310});
+    r1550.push({type:ev.type,pos,loss:isGain?-Math.abs(l1550):Math.abs(l1550),gainVal:gainV1550,reflectance:refl+jit(.5),pass:pass1550});
+  });
+  const fib1310=(len/1000)*S.at1310, fib1550=(len/1000)*S.at1550;
+  const evL1310=r1310.reduce((s,e)=>s+(e.type==='break'?0:e.loss),0);
+  const evL1550=r1550.reduce((s,e)=>s+(e.type==='break'?0:e.loss),0);
+  const hasBreak=S.cfgEvs.some(e=>e.type==='break');
+  const orl1310=hasBreak?(11+Math.random()*4).toFixed(2):(42+Math.random()*8).toFixed(2);
+  const orl1550=hasBreak?(9+Math.random()*4).toFixed(2):(44+Math.random()*8).toFixed(2);
+  const globalPass=r1310.every(e=>e.pass)&&r1550.every(e=>e.pass);
+  const fails=Math.max(r1310.filter(e=>!e.pass).length,r1550.filter(e=>!e.pass).length);
+  S.results={
+    evs1310:r1310, evs1550:r1550,
+    ll1310:(fib1310+evL1310).toFixed(3), ll1550:(fib1550+evL1550).toFixed(3),
+    orl1310,orl1550,globalPass,fails,
+    date:new Date().toLocaleString('en-GB'),
+    dur:(3.2+Math.random()).toFixed(1)+' s',
+  };
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────────────────────────────
+function renderResults() {
+  const r=S.results;
+  document.getElementById('sLL1310').textContent=r.ll1310;
+  document.getElementById('sLL1550').textContent=r.ll1550;
+  document.getElementById('sORL1310').textContent=r.orl1310;
+  document.getElementById('sORL1550').textContent=r.orl1550;
+  const pf=document.getElementById('pfBox');
+  pf.textContent=r.globalPass?'PASS':'FAIL';
+  pf.className='pf-box '+(r.globalPass?'pf-pass':'pf-fail');
+  fillEvTable(); renderFiber(true); fillMeasInfo(); drawTrace();
+}
+
+function fillEvTable() {
+  const evs=S.selWl==='1310'?S.results.evs1310:S.results.evs1550;
+  const body=document.getElementById('evTbody');
+  body.innerHTML='';
+  evs.forEach((ev,i)=>{
+    const meta=TM[ev.type]||TM.connector;
+    const lossColor=ev.type==='gain'?'#88ee88':ev.loss>1?'#ff7777':ev.loss>0.5?'#ffdd88':'#99eebb';
+    const tr=document.createElement('tr');
+    if(!ev.pass)tr.className='row-fail';
+    tr.innerHTML=`
+      <td>${i+1}</td>
+      <td>${ev.pos.toFixed(1)}</td>
+      <td>${meta.label}</td>
+      <td>${S.selWl}</td>
+      <td style="color:${lossColor}">${ev.type==='break'?'— (Break)':ev.loss.toFixed(3)}</td>
+      <td>${ev.reflectance.toFixed(2)}</td>
+      <td>${ev.type==='gain'?'+'+ev.gainVal.toFixed(3):'—'}</td>
+      <td class="${ev.pass?'t-pass':'t-fail'}">${ev.pass?'✔ Pass':'✘ Fail'}</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function fillMeasInfo() {
+  const r=S.results;
+  document.getElementById('miDate').textContent=r.date;
+  document.getElementById('miDur').textContent=r.dur;
+  document.getElementById('miLen').textContent=S.linkLen+' m';
+  document.getElementById('miEvts').textContent=S.cfgEvs.length;
+  document.getElementById('miRange').textContent=(Math.ceil(S.linkLen/1000*1.5))+' km';
+  document.getElementById('miThs').textContent=S.thSplice.toFixed(2)+' dB';
+  document.getElementById('miThc').textContent=S.thConn.toFixed(2)+' dB';
+  document.getElementById('miThb').textContent=S.thBend.toFixed(2)+' dB';
+  document.getElementById('miThsp').textContent=S.thSplit.toFixed(2)+' dB';
+  document.getElementById('miThr').textContent=S.thRefl+' dB';
+  document.getElementById('miAt1310').textContent=S.at1310+' dB/km';
+  const pf=document.getElementById('miPF');
+  pf.textContent=r.globalPass?'PASS ✔':'FAIL ✘';
+  pf.style.color=r.globalPass?'#44ee44':'#ff4444';
+  document.getElementById('miFails').textContent=r.fails+' event(s)';
+}
+
+// ─── OTDR TRACE ───────────────────────────────────────────────────────────────
+function drawTrace() {
+  const cvs=document.getElementById('traceCanvas');
+  const ctx=cvs.getContext('2d');
+  cvs.width=cvs.offsetWidth||760;
+  const W=cvs.width, H=cvs.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#060610'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#14142a'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=W/10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=H/8){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.fillStyle='#444'; ctx.font='8px Courier New';
+  ctx.fillText('dB ↑',2,12); ctx.fillText('Distance →',W-72,H-3);
+  if(!S.results)return;
+  const evs=S.selWl==='1310'?S.results.evs1310:S.results.evs1550;
+  const at=S.selWl==='1310'?S.at1310:S.at1550;
+  const ll=parseFloat(S.selWl==='1310'?S.results.ll1310:S.results.ll1550);
+  const len=S.linkLen;
+  const maxDb=Math.max(ll+5,8);
+  const pL=34,pR=20,pT=14,pB=18;
+  const pW=W-pL-pR, pH=H-pT-pB;
+  const xOf=p=>pL+(p/len)*pW;
+  const yOf=db=>pT+(Math.max(0,Math.min(db,maxDb))/maxDb)*pH;
+  // axis labels
+  for(let db=0;db<=maxDb;db+=maxDb/4){
+    ctx.fillStyle='#444'; ctx.font='8px Courier New';
+    ctx.fillText(db.toFixed(1),2,yOf(db)+3);
+    ctx.beginPath(); ctx.strokeStyle='#14142a';
+    ctx.moveTo(pL,yOf(db)); ctx.lineTo(W-pR,yOf(db)); ctx.stroke();
+  }
+  [0,.25,.5,.75,1].forEach(f=>{
+    const p=Math.round(f*len);
+    ctx.fillStyle='#444'; ctx.font='8px Courier New';
+    ctx.fillText(p>=1000?(p/1000).toFixed(1)+'k':p,xOf(p)-8,H-3);
+  });
+  // Build trace points
+  let cumLoss=0;
+  const traceColor=S.selWl==='1310'?'#ffcc00':'#00aaff';
+  const glowColor =S.selWl==='1310'?'#ffcc0044':'#00aaff44';
+  ctx.beginPath(); ctx.strokeStyle=traceColor; ctx.shadowColor=glowColor; ctx.shadowBlur=5; ctx.lineWidth=1.5;
+  let prevPos=0;
+  ctx.moveTo(xOf(0),yOf(0));
+  let brokenAt=null;
+
+  for(let i=0;i<evs.length;i++){
+    const ev=evs[i];
+    // fiber segment loss
+    const segL=((ev.pos-prevPos)/1000)*at;
+    cumLoss+=segL;
+    ctx.lineTo(xOf(ev.pos),yOf(cumLoss));
+
+    if(ev.type==='break'){
+      // Fresnel peak then drop
+      ctx.stroke(); ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.strokeStyle='#ff5555'; ctx.shadowColor='#ff555544'; ctx.shadowBlur=6; ctx.lineWidth=1.5;
+      ctx.moveTo(xOf(ev.pos),yOf(cumLoss));
+      ctx.lineTo(xOf(ev.pos+len*.003),yOf(cumLoss-2));
+      ctx.lineTo(xOf(ev.pos+len*.007),yOf(maxDb*.9));
+      ctx.stroke(); ctx.shadowBlur=0;
+      brokenAt=ev.pos; break;
+    }
+
+    if(['connector','mech-conn'].includes(ev.type)){
+      // Fresnel peak
+      ctx.stroke(); ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.strokeStyle=traceColor; ctx.shadowColor=glowColor; ctx.shadowBlur=5; ctx.lineWidth=1.5;
+      ctx.moveTo(xOf(ev.pos),yOf(cumLoss));
+      ctx.lineTo(xOf(ev.pos+len*.0025),yOf(cumLoss-1.4));
+      cumLoss+=Math.abs(ev.loss);
+      ctx.lineTo(xOf(ev.pos+len*.005),yOf(cumLoss));
+    } else if(ev.type==='gain'){
+      cumLoss-=Math.abs(ev.loss); // step up
+      ctx.stroke(); ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.strokeStyle='#88ee88'; ctx.shadowColor='#88ee8844'; ctx.shadowBlur=5; ctx.lineWidth=1.5;
+      ctx.moveTo(xOf(ev.pos),yOf(cumLoss));
+    } else if(ev.type==='splitter'){
+      cumLoss+=Math.abs(ev.loss);
+      ctx.lineTo(xOf(ev.pos),yOf(cumLoss));
+      // secondary ghost branch
+      ctx.stroke(); ctx.shadowBlur=0;
+      const ghostStart=cumLoss-Math.abs(ev.loss)*0.5;
+      ctx.beginPath(); ctx.strokeStyle=traceColor+'55'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+      ctx.moveTo(xOf(ev.pos),yOf(ghostStart));
+      ctx.lineTo(xOf(Math.min(len,ev.pos+len*.12)),yOf(ghostStart+(len*.12/1000)*at));
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.strokeStyle=traceColor; ctx.shadowColor=glowColor; ctx.shadowBlur=5; ctx.lineWidth=1.5;
+      ctx.moveTo(xOf(ev.pos),yOf(cumLoss));
+    } else {
+      cumLoss+=Math.abs(ev.loss);
+      ctx.lineTo(xOf(ev.pos),yOf(cumLoss));
+    }
+    prevPos=ev.pos;
+  }
+
+  if(!brokenAt){
+    // tail to end
+    const lastPos=evs.length?evs[evs.length-1].pos:0;
+    const tailL=((len-lastPos)/1000)*at;
+    ctx.lineTo(xOf(len),yOf(cumLoss+tailL));
+    ctx.stroke(); ctx.shadowBlur=0;
+    // End reflection
+    ctx.beginPath(); ctx.strokeStyle='#ff888866'; ctx.lineWidth=1;
+    ctx.moveTo(xOf(len),yOf(cumLoss+tailL));
+    ctx.lineTo(xOf(len+len*.01),yOf(cumLoss+tailL-1.8));
+    ctx.lineTo(xOf(len+len*.025),yOf(maxDb));
+    ctx.stroke();
+  } else {
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+
+  // Event markers
+  let cum2=0, prev2=0;
+  evs.forEach(ev=>{
+    const seg=((ev.pos-prev2)/1000)*at;
+    cum2+=seg;
+    if(ev.type!=='break'){
+      ctx.beginPath();
+      ctx.fillStyle=ev.pass?'#44ee44':'#ff4444';
+      ctx.shadowColor=ev.pass?'#44ee4488':'#ff444488'; ctx.shadowBlur=5;
+      ctx.arc(xOf(ev.pos),yOf(cum2),3.5,0,Math.PI*2);
+      ctx.fill(); ctx.shadowBlur=0;
+      if(['connector','mech-conn'].includes(ev.type)) cum2+=Math.abs(ev.loss);
+      else if(ev.type==='gain') cum2-=Math.abs(ev.loss);
+      else cum2+=Math.abs(ev.loss);
+    }
+    prev2=ev.pos;
+  });
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+function resetAll(){
+  initEvs(); S.measured=false; S.results=null;
+  document.getElementById('pFill').style.width='0%';
+  document.getElementById('pPct').textContent='0%';
+  document.getElementById('pLbl').textContent='Idle';
+  document.getElementById('sDot').style.cssText='background:#44cc44;box-shadow:0 0 6px #44cc44';
+  document.getElementById('sTxt').textContent='READY';
+  resetDisplay(); renderFiber(false);
+}
+function resetDisplay(){
+  ['sLL1310','sLL1550','sORL1310','sORL1550'].forEach(id=>document.getElementById(id).textContent='—');
+  const pf=document.getElementById('pfBox'); pf.textContent='—'; pf.className='pf-box pf-unknown';
+  document.getElementById('evTbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:#444;padding:24px">Run a measurement to see results</td></tr>';
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!S.results){alert('Run a measurement first.');return;}
+  const r=S.results;
+  let csv='iOLM Simulator Report — EXFO FTB-1 Pro\n';
+  csv+=`Date,${r.date}\nDuration,${r.dur}\nLink Length,${S.linkLen} m\n`;
+  csv+=`Attenuation 1310,${S.at1310} dB/km\nAttenuation 1550,${S.at1550} dB/km\nIOR,${S.ior}\n`;
+  csv+=`Link Loss 1310,${r.ll1310} dB\nLink Loss 1550,${r.ll1550} dB\n`;
+  csv+=`ORL 1310,${r.orl1310} dB\nORL 1550,${r.orl1550} dB\n`;
+  csv+=`Global Result,${r.globalPass?'PASS':'FAIL'}\n\n`;
+  csv+='#,Position(m),Type,Loss 1310(dB),Loss 1550(dB),Reflectance(dB),Pass 1310,Pass 1550\n';
+  S.cfgEvs.forEach((ev,i)=>{
+    const e1=r.evs1310[i], e2=r.evs1550[i];
+    csv+=`${i+1},${e1.pos},${TM[ev.type]?.label||ev.type},${e1.loss.toFixed(3)},${e2.loss.toFixed(3)},${e1.reflectance.toFixed(2)},${e1.pass?'PASS':'FAIL'},${e2.pass?'PASS':'FAIL'}\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`iolm_report_${Date.now()}.csv`;
+  a.click();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+renderFiber(false);
+renderEvList();
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!S.measuring)startMeas();
+  if(e.key==='Escape')closeCfg();
+});
+</script>
+</body>
+</html>
